@@ -1,0 +1,46 @@
+# Ambiente de DESENVOLVIMENTO (não usar em produção).
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: financas
+      POSTGRES_USER: financas
+      POSTGRES_PASSWORD: financas
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U financas -d financas"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://financas:financas@db:5432/financas
+      SECRET_KEY: dev-secret-nao-usar-em-producao
+      CORS_ORIGINS: http://localhost:5173
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app # hot-reload do código
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    environment:
+      API_PROXY_TARGET: http://backend:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app # hot-reload do código
+      - /app/node_modules # mantém as dependências instaladas na imagem
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
